@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gas Kiln Monitor</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: system-ui, sans-serif; margin: 0; background: #14161a; color: #e8e8e8; }
+    header { padding: 16px 24px; background: #1d2027; border-bottom: 1px solid #2a2e37; }
+    h1 { margin: 0; font-size: 18px; font-weight: 600; }
+    main { padding: 24px; max-width: 860px; margin: 0 auto; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+    .card { background: #1d2027; border: 1px solid #2a2e37; border-radius: 10px; padding: 16px; }
+    .card .label { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #8a92a3; }
+    .card .value { font-size: 30px; font-weight: 700; margin-top: 6px; }
+    .card .unit { font-size: 15px; color: #8a92a3; font-weight: 500; }
+    .status { margin: 20px 0; padding: 14px 16px; border-radius: 10px; font-weight: 600; }
+    .status.ok { background: #10261a; color: #6ee7a8; border: 1px solid #1f5138; }
+    .status.safe { background: #2a1717; color: #ff8f8f; border: 1px solid #5a2626; }
+    .status.stale { background: #2a2410; color: #f0d264; border: 1px solid #5a4d1f; }
+    .estop { margin-top: 24px; }
+    button { font: inherit; cursor: pointer; border-radius: 10px; border: none; padding: 14px 20px; font-weight: 700; }
+    .btn-stop { background: #c62828; color: #fff; font-size: 16px; }
+    .btn-clear { background: #33383f; color: #e8e8e8; margin-left: 12px; }
+    .bar { height: 10px; background: #2a2e37; border-radius: 6px; overflow: hidden; margin-top: 10px; }
+    .bar > span { display: block; height: 100%; background: #4f9dff; width: 0%; transition: width .4s; }
+    footer { color: #6a7080; font-size: 12px; padding: 16px 24px; }
+  </style>
+</head>
+<body>
+  <header><h1>Gas Kiln Monitor</h1></header>
+  <main>
+    <div id="status" class="status stale">Connecting…</div>
+
+    <div class="grid">
+      <div class="card"><div class="label">Temperature</div>
+        <div class="value"><span id="temp">--</span><span class="unit"> °C</span></div></div>
+      <div class="card"><div class="label">Setpoint</div>
+        <div class="value"><span id="setpoint">--</span><span class="unit"> °C</span></div></div>
+      <div class="card"><div class="label">Valve command</div>
+        <div class="value"><span id="valve">--</span><span class="unit"> %</span></div>
+        <div class="bar"><span id="valvebar"></span></div></div>
+      <div class="card"><div class="label">Valve signal</div>
+        <div class="value"><span id="voltage">--</span><span class="unit"> V</span></div></div>
+    </div>
+
+    <div class="estop">
+      <button class="btn-stop" onclick="estop(true)">EMERGENCY STOP (close valve)</button>
+      <button class="btn-clear" onclick="estop(false)">Clear e-stop</button>
+    </div>
+  </main>
+  <footer>
+    The Raspberry Pi only modulates an already-proven flame. Ignition and
+    flame-out protection are handled by external certified hardware.
+  </footer>
+
+  <script>
+    const POLL_MS = {{ poll_ms }};
+    const $ = (id) => document.getElementById(id);
+    const fmt = (v, d = 1) => (v === null || v === undefined) ? "--" : Number(v).toFixed(d);
+
+    async function poll() {
+      try {
+        const r = await fetch("/api/state");
+        const s = await r.json();
+        const status = $("status");
+        if (!s.available) {
+          status.className = "status stale";
+          status.textContent = "No data from controller (is it running?)";
+        } else if (s.estop || s.fault) {
+          status.className = "status safe";
+          status.textContent = "SAFE STATE — " + (s.message || s.fault || "valve closed");
+        } else {
+          status.className = "status ok";
+          status.textContent = "Running normally";
+        }
+        $("temp").textContent = fmt(s.temperature_c);
+        $("setpoint").textContent = fmt(s.setpoint_c);
+        $("valve").textContent = fmt(s.valve_percent, 0);
+        $("voltage").textContent = fmt(s.valve_voltage, 2);
+        $("valvebar").style.width = (s.valve_percent || 0) + "%";
+      } catch (e) {
+        $("status").className = "status stale";
+        $("status").textContent = "Dashboard connection error";
+      }
+    }
+
+    async function estop(engage) {
+      await fetch("/api/estop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ engage })
+      });
+      poll();
+    }
+
+    poll();
+    setInterval(poll, POLL_MS);
+  </script>
+</body>
+</html>

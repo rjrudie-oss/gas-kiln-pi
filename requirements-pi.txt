@@ -1,0 +1,18 @@
+# Raspberry Pi 5 hardware drivers (install ON the Pi).
+-r requirements.txt
+
+# Thermocouple amplifier
+adafruit-circuitpython-max31856>=0.11
+# Legacy amp, only if you use thermocouple_driver: max31855
+adafruit-circuitpython-max31855>=3.2
+
+# Blinka provides board/busio/digitalio on the Pi (Pi 5 uses lgpio underneath)
+Adafruit-Blinka>=8.0
+adafruit-blinka>=8.0
+
+# GPIO for the relay (gpiozero + lgpio backend works on Pi 5)
+gpiozero>=2.0
+lgpio>=0.2
+
+# Analog modulating-valve upgrade path (MCP4725 DAC) - optional
+adafruit-circuitpython-mcp4725>=1.4

@@ -1,0 +1,19 @@
+[Unit]
+Description=Gas kiln PID controller
+After=network.target
+
+[Service]
+Type=simple
+User=kiln
+WorkingDirectory=/opt/gas-kiln-pi
+Environment=KILN_CONFIG=/opt/gas-kiln-pi/config.yaml
+ExecStart=/opt/gas-kiln-pi/.venv/bin/python scripts/run_controller.py -c /opt/gas-kiln-pi/config.yaml
+Restart=on-failure
+RestartSec=2
+# RuntimeDirectory creates /run/kiln with the right ownership for the heartbeat,
+# e-stop and state files referenced in config.yaml.
+RuntimeDirectory=kiln
+RuntimeDirectoryMode=0755
+
+[Install]
+WantedBy=multi-user.target

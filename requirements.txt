@@ -1,0 +1,7 @@
+# Core (all platforms)
+PyYAML>=6.0
+Flask>=3.0
+
+# Raspberry Pi hardware drivers. These install and import only on the Pi;
+# with hardware.simulate=true they are not needed, so they are optional here.
+# Install on the Pi with:  pip install -r requirements-pi.txt

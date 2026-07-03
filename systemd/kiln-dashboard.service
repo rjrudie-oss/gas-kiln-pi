@@ -1,0 +1,15 @@
+[Unit]
+Description=Gas kiln web dashboard
+After=kiln-controller.service
+
+[Service]
+Type=simple
+User=kiln
+WorkingDirectory=/opt/gas-kiln-pi
+Environment=KILN_CONFIG=/opt/gas-kiln-pi/config.yaml
+ExecStart=/opt/gas-kiln-pi/.venv/bin/python scripts/run_dashboard.py -c /opt/gas-kiln-pi/config.yaml
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
