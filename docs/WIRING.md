@@ -49,9 +49,43 @@ Solenoid - ------> 12V-  (PSU ground)
   `valve_relay_active_high: false`. Test with the solenoid **disconnected from
   gas** first and confirm the click/logic matches "closed at rest".
 
+## Chimney damper — linear actuator via L298N H-bridge
+
+Positions the chimney damper with a 12 V linear actuator. The actuator has
+built-in end-of-travel limit switches but no position feedback, so position is
+estimated by **timing the stroke** (the code "homes" against the retracted
+limit at startup). Enable it with `damper.enabled: true`.
+
+L298N control side (logic):
+
+| L298N | Connect to |
+|-------|------------|
+| IN1   | GPIO23 (BCM) → `damper.in1_gpio: 23` |
+| IN2   | GPIO24 (BCM) → `damper.in2_gpio: 24` |
+| ENA   | leave the **ENA jumper on** (motor always enabled) → `damper.enable_gpio: -1` |
+| GND   | Pi GND (common ground with the Pi) |
+| +5V logic | the L298N's onboard regulator usually powers its logic from the 12 V motor supply; if your board needs 5 V logic in, take it from Pi 5V |
+
+L298N motor / power side (12 V):
+
+```
+12V+  --[fuse]--> L298N +12V (VS / motor supply)
+12V-  ----------> L298N GND  (common with Pi GND)
+L298N OUT1 ------> Actuator lead A
+L298N OUT2 ------> Actuator lead B
+```
+
+- Reversing OUT1/OUT2 (or setting `damper.invert: true`) flips travel direction.
+- Convention: **0 % = retracted, 100 % = extended.** Map that to open/closed for
+  your linkage; use `invert` if it moves the wrong way.
+- Bench-time the full stroke and set `damper.stroke_time_s` to that number of
+  seconds so the position estimate is accurate.
+- ⚠️ Keep the L298N motor supply grounded to the Pi, or the direction inputs
+  float and the actuator can move unpredictably.
+
 ## Grounding & power
 
-- Common all grounds: Pi GND, relay GND, 12 V PSU −.
+- Common all grounds: Pi GND, relay GND, 12 V PSU −, L298N GND.
 - Do **not** power the 12 V solenoid from the Pi. Use the 12 V supply.
 - Keep thermocouple wiring away from the 12 V/mains runs to reduce noise; use
   the ceramic protection sheath in the kiln.

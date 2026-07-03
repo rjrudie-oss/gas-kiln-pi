@@ -22,6 +22,9 @@ class KilnState:
     valve_percent: float = 0.0
     valve_voltage: Optional[float] = None
     pid_output: float = 0.0
+    damper_enabled: bool = False
+    damper_position: Optional[float] = None
+    damper_target: Optional[float] = None
     running: bool = False
     fault: Optional[str] = None
     safe_state: bool = True  # True == valve forced closed by a safety condition

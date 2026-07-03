@@ -8,7 +8,10 @@ The factory functions pick the implementation based on ``HardwareConfig``.
 """
 from __future__ import annotations
 
-from ..config import HardwareConfig
+from typing import Optional
+
+from ..config import DamperConfig, HardwareConfig
+from .actuator import Damper, L298NDamper, SimulatedDamper, TimedDamper
 from .thermocouple import (
     MAX31855Thermocouple,
     MAX31856Thermocouple,
@@ -33,8 +36,13 @@ __all__ = [
     "RelayValve",
     "MCP4725Valve",
     "SimulatedValve",
+    "Damper",
+    "TimedDamper",
+    "L298NDamper",
+    "SimulatedDamper",
     "make_thermocouple",
     "make_valve",
+    "make_damper",
 ]
 
 
@@ -72,3 +80,25 @@ def make_valve(cfg: HardwareConfig) -> GasValve:
             power_gpio=cfg.valve_power_gpio,
         )
     raise ValueError(f"unknown valve_type: {cfg.valve_type}")
+
+
+def make_damper(cfg: DamperConfig, simulate: bool = False) -> Optional[Damper]:
+    """Build the chimney-damper actuator, or ``None`` when it is disabled."""
+    if not cfg.enabled:
+        return None
+    if simulate:
+        return SimulatedDamper(
+            stroke_time_s=cfg.stroke_time_s,
+            invert=cfg.invert,
+        )
+    driver = cfg.driver.lower()
+    if driver == "l298n":
+        return L298NDamper(
+            in1_gpio=cfg.in1_gpio,
+            in2_gpio=cfg.in2_gpio,
+            enable_gpio=cfg.enable_gpio,
+            stroke_time_s=cfg.stroke_time_s,
+            home_on_start=cfg.home_on_start,
+            invert=cfg.invert,
+        )
+    raise ValueError(f"unknown damper driver: {cfg.driver}")

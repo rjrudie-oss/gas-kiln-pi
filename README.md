@@ -9,7 +9,11 @@ The Raspberry Pi:
 - follows a **firing profile** (ramp/hold segments) with a **PID loop**,
 - modulates gas by **time-proportional (slow-PWM) on/off control** of a
   **12 V normally-closed solenoid** through a relay channel,
-- serves a **lightweight web dashboard** for monitoring + emergency stop.
+- optionally positions a **chimney damper** with a 12 V linear actuator through
+  an L298N H-bridge (position estimated by timing the stroke; disabled by
+  default, enable with `damper.enabled: true`),
+- serves a **lightweight web dashboard** for monitoring, emergency stop, and
+  (when enabled) a damper-position slider.
 
 The valve command defaults to **closed** on startup, on any sensor fault,
 on over-temperature, and on any unhandled exception.
