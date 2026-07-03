@@ -25,7 +25,8 @@ from typing import Optional
 from .config import Config
 from .control.pid import PID
 from .control.profile import FiringProfile
-from .hardware import make_thermocouple, make_valve
+from .hardware import make_damper, make_thermocouple, make_valve
+from .hardware.actuator import Damper
 from .hardware.thermocouple import SimulatedThermocouple, Thermocouple
 from .hardware.valve import GasValve, SimulatedValve
 from .safety.heartbeat import Heartbeat
@@ -41,11 +42,13 @@ class KilnController:
         cfg: Config,
         thermocouple: Optional[Thermocouple] = None,
         valve: Optional[GasValve] = None,
+        damper: Optional[Damper] = None,
         state_path: str = "/run/kiln/state.json",
     ) -> None:
         self.cfg = cfg
         self.thermocouple = thermocouple or make_thermocouple(cfg.hardware)
         self.valve = valve or make_valve(cfg.hardware)
+        self.damper = damper or make_damper(cfg.damper, cfg.hardware.simulate)
         self.state_path = state_path
 
         # Wire the simulated valve to the simulated sensor so the loop closes.
@@ -85,8 +88,32 @@ class KilnController:
     def _safe_shutdown(self, reason: str) -> None:
         try:
             self.valve.close()
+            if self.damper is not None:
+                self.damper.stop()
         finally:
             log.warning("controller closed valve: %s", reason)
+
+    def _read_damper_command(self) -> float:
+        """Requested damper position (0-100) from the dashboard, or the default."""
+        try:
+            with open(self.cfg.damper.command_path, "r", encoding="utf-8") as fh:
+                return float(fh.read().strip())
+        except (FileNotFoundError, ValueError):
+            return self.cfg.damper.default_percent
+
+    def _update_damper(self, dt: float, state: KilnState) -> None:
+        """Position the chimney damper. Independent of the gas fail-safes: a
+        damper error must never stop the control loop, so it is isolated here."""
+        if self.damper is None:
+            return
+        try:
+            self.damper.set_target_percent(self._read_damper_command())
+            self.damper.update(dt)
+            state.damper_enabled = True
+            state.damper_position = self.damper.position_percent
+            state.damper_target = self.damper.target_percent
+        except Exception:  # damper is not a gas fail-safe; keep the loop alive
+            log.exception("damper update failed (continuing)")
 
     # -- one iteration -----------------------------------------------------
     def tick(self, now: Optional[float] = None) -> KilnState:
@@ -97,6 +124,7 @@ class KilnController:
         self._last_ts = now
 
         state = KilnState(timestamp=now, running=self._running)
+        self._update_damper(dt, state)
 
         try:
             reading = self.thermocouple.read()

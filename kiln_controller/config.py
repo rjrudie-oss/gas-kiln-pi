@@ -92,6 +92,31 @@ class HardwareConfig:
 
 
 @dataclass
+class DamperConfig:
+    # Chimney-damper linear actuator via an L298N H-bridge. Disabled by default;
+    # the core kiln controller runs fine without it.
+    enabled: bool = False
+    # "l298n" (real driver) is the only hardware option; simulation is picked
+    # automatically when hardware.simulate is true.
+    driver: str = "l298n"
+    # BCM pins wired to the L298N IN1 / IN2 inputs for the damper motor.
+    in1_gpio: int = 23
+    in2_gpio: int = 24
+    # ENA (enable) pin. -1 == leave the board's ENA jumper on (always enabled).
+    enable_gpio: int = -1
+    # Seconds for one full stroke (retracted <-> extended). Time it on the bench.
+    stroke_time_s: float = 20.0
+    # Drive to the retracted limit once on startup to establish the 0 % point.
+    home_on_start: bool = True
+    # Flip if the actuator moves the opposite way from what you expect.
+    invert: bool = False
+    # Position (0-100 %) held on startup and whenever no command has been issued.
+    default_percent: float = 0.0
+    # File the dashboard writes the requested damper position (0-100) to.
+    command_path: str = "/run/kiln/damper"
+
+
+@dataclass
 class WebConfig:
     host: str = "0.0.0.0"
     port: int = 8080
@@ -111,6 +136,7 @@ class Config:
     pid: PIDConfig = field(default_factory=PIDConfig)
     safety: SafetyConfig = field(default_factory=SafetyConfig)
     hardware: HardwareConfig = field(default_factory=HardwareConfig)
+    damper: DamperConfig = field(default_factory=DamperConfig)
     web: WebConfig = field(default_factory=WebConfig)
     control: ControlConfig = field(default_factory=ControlConfig)
 
@@ -127,6 +153,7 @@ class Config:
             pid=PIDConfig(**data.get("pid", {})),
             safety=SafetyConfig(**data.get("safety", {})),
             hardware=HardwareConfig(**_parse_hw(data.get("hardware", {}))),
+            damper=DamperConfig(**data.get("damper", {})),
             web=WebConfig(**data.get("web", {})),
             control=ControlConfig(**_parse_control(data.get("control", {}))),
         )

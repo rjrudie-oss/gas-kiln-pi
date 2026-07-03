@@ -19,6 +19,21 @@ hardware:
   # Set to a real BCM pin (e.g. 27 -> relay IN2) if you run the watchdog.
   watchdog_relay_gpio: -1
 
+# Chimney-damper linear actuator (4" 12 V actuator via an L298N H-bridge).
+# Disabled by default; the core controller runs fine without it. Set
+# enabled: true after wiring the L298N (see docs/WIRING.md).
+damper:
+  enabled: false
+  driver: l298n
+  in1_gpio: 23           # BCM -> L298N IN1
+  in2_gpio: 24           # BCM -> L298N IN2
+  enable_gpio: -1        # -1 = leave the L298N ENA jumper on (always enabled)
+  stroke_time_s: 20.0    # seconds for one full stroke; time yours on the bench
+  home_on_start: true    # retract to the limit once at startup to find 0 %
+  invert: false          # flip if the actuator travels the wrong way
+  default_percent: 0.0   # position held until the dashboard commands otherwise
+  command_path: /run/kiln/damper
+
 pid:
   kp: 2.0
   ki: 0.01

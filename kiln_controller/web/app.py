@@ -25,7 +25,11 @@ def create_app(cfg: Optional[Config] = None, state_path: str = "/run/kiln/state.
 
     @app.route("/")
     def index():
-        return render_template("index.html", poll_ms=int(cfg.web.poll_interval_s * 1000))
+        return render_template(
+            "index.html",
+            poll_ms=int(cfg.web.poll_interval_s * 1000),
+            damper_enabled=cfg.damper.enabled,
+        )
 
     @app.route("/api/state")
     def api_state():
@@ -51,6 +55,24 @@ def create_app(cfg: Optional[Config] = None, state_path: str = "/run/kiln/state.
         if os.path.exists(path):
             os.remove(path)
         return jsonify({"estop": False})
+
+    @app.route("/api/damper", methods=["POST"])
+    def api_damper():
+        """Set the requested chimney-damper position (0-100 %)."""
+        if not cfg.damper.enabled:
+            return jsonify({"error": "damper disabled"}), 400
+        if not request.is_json:
+            return jsonify({"error": "expected JSON"}), 400
+        try:
+            percent = float(request.json.get("percent"))
+        except (TypeError, ValueError):
+            return jsonify({"error": "invalid percent"}), 400
+        percent = max(0.0, min(100.0, percent))
+        path = cfg.damper.command_path
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(str(percent))
+        return jsonify({"damper_target": percent})
 
     return app
 

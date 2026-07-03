@@ -25,6 +25,9 @@
     .btn-clear { background: #33383f; color: #e8e8e8; margin-left: 12px; }
     .bar { height: 10px; background: #2a2e37; border-radius: 6px; overflow: hidden; margin-top: 10px; }
     .bar > span { display: block; height: 100%; background: #4f9dff; width: 0%; transition: width .4s; }
+    .damper-control { margin-top: 20px; }
+    .damper-control input[type=range] { width: 100%; margin-top: 12px; accent-color: #4f9dff; }
+    .damper-control .hint { font-size: 12px; color: #8a92a3; margin-top: 8px; }
     footer { color: #6a7080; font-size: 12px; padding: 16px 24px; }
   </style>
 </head>
@@ -43,7 +46,20 @@
         <div class="bar"><span id="valvebar"></span></div></div>
       <div class="card"><div class="label">Valve signal</div>
         <div class="value"><span id="voltage">--</span><span class="unit"> V</span></div></div>
+      {% if damper_enabled %}
+      <div class="card"><div class="label">Damper position</div>
+        <div class="value"><span id="damperpos">--</span><span class="unit"> %</span></div>
+        <div class="bar"><span id="damperbar"></span></div></div>
+      {% endif %}
     </div>
+
+    {% if damper_enabled %}
+    <div class="card damper-control">
+      <div class="label">Chimney damper &mdash; target <span id="dampertarget">--</span> %</div>
+      <input id="damperslider" type="range" min="0" max="100" step="1" value="0" />
+      <div class="hint">0 % = retracted &nbsp;&middot;&nbsp; 100 % = extended (map to open/closed per your linkage)</div>
+    </div>
+    {% endif %}
 
     <div class="estop">
       <button class="btn-stop" onclick="estop(true)">EMERGENCY STOP (close valve)</button>
@@ -80,6 +96,12 @@
         $("valve").textContent = fmt(s.valve_percent, 0);
         $("voltage").textContent = fmt(s.valve_voltage, 2);
         $("valvebar").style.width = (s.valve_percent || 0) + "%";
+        if (s.damper_enabled && $("damperpos")) {
+          $("damperpos").textContent = fmt(s.damper_position, 0);
+          $("damperbar").style.width = (s.damper_position || 0) + "%";
+          $("dampertarget").textContent = fmt(s.damper_target, 0);
+          if (!sliderActive) $("damperslider").value = Math.round(s.damper_target || 0);
+        }
       } catch (e) {
         $("status").className = "status stale";
         $("status").textContent = "Dashboard connection error";
@@ -93,6 +115,27 @@
         body: JSON.stringify({ engage })
       });
       poll();
+    }
+
+    let sliderActive = false;
+    const slider = $("damperslider");
+    if (slider) {
+      const send = async (percent) => {
+        await fetch("/api/damper", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ percent })
+        });
+      };
+      slider.addEventListener("input", () => {
+        sliderActive = true;
+        $("dampertarget").textContent = slider.value;
+      });
+      slider.addEventListener("change", async () => {
+        await send(Number(slider.value));
+        sliderActive = false;
+        poll();
+      });
     }
 
     poll();
