@@ -83,9 +83,34 @@ L298N OUT2 ------> Actuator lead B
 - ⚠️ Keep the L298N motor supply grounded to the Pi, or the direction inputs
   float and the actuator can move unpredictably.
 
+## Servo throttle — smooth gas modulation (valve_type: servo)
+
+A hobby servo turns a **quarter-turn ball valve** (or a needle valve) to
+throttle the flame smoothly, while the **solenoid stays in line as the
+independent fail-safe cutoff**. Gas path: regulator → manual ball valve →
+solenoid (safety on/off) → servo-driven throttle valve → burner.
+
+| Servo wire | Connects to |
+|------------|-------------|
+| Signal (usually orange/white) | Pi **GPIO18** (physical pin 12) |
+| V+ (red) | **5–6 V servo supply +** (NOT the Pi 5V rail for a strong servo) |
+| GND (brown/black) | servo supply − **and** Pi GND (common ground) |
+
+- Power the servo from its own 5–6 V supply (a metal-gear servo can pull >1 A
+  when turning a valve, which can brown-out the Pi if taken from the Pi 5V pin).
+  Tie its ground to Pi GND so the signal has a common reference.
+- Mechanically couple the servo horn to the valve stem so 0 % = closed and
+  100 % = full open. Set `servo_closed_angle` / `servo_open_angle` to match your
+  linkage (≈90° of travel for a ball valve), and `invert` by swapping the two
+  angles if it moves the wrong way.
+- ⚠️ The servo is **not** a gas-tight shutoff and only holds while powered. The
+  solenoid (relay wiring above, unchanged) remains the safety cutoff: it is held
+  open while firing and shuts on any fault, e-stop, or power loss. Use a
+  **continuous-duty** solenoid since it stays energized for the whole firing.
+
 ## Grounding & power
 
-- Common all grounds: Pi GND, relay GND, 12 V PSU −, L298N GND.
+- Common all grounds: Pi GND, relay GND, 12 V PSU −, L298N GND, servo supply −.
 - Do **not** power the 12 V solenoid from the Pi. Use the 12 V supply.
 - Keep thermocouple wiring away from the 12 V/mains runs to reduce noise; use
   the ceramic protection sheath in the kiln.

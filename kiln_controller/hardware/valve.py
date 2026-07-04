@@ -18,6 +18,14 @@ Two driver styles are provided:
 ``MCP4725Valve`` (analog option, not used by the current parts list)
     Drives a motorized *modulating* valve with a 0-10 V analog signal from an
     MCP4725 DAC + gain stage. Kept for a future proportional-valve upgrade.
+
+``ServoValve`` + ``ModulatingValve`` (smooth-throttle upgrade)
+    ``ServoValve`` positions a hobby servo on a quarter-turn ball valve (or
+    needle valve) to *proportionally* throttle gas. A servo is NOT a gas-tight
+    shutoff and only holds while powered, so ``ModulatingValve`` pairs it with
+    the normally-closed solenoid (via ``RelayValve``) as the independent
+    fail-safe on/off: the solenoid is held open while firing and shut on any
+    safe state / power loss, so gas-off is always the default.
 """
 from __future__ import annotations
 
@@ -146,6 +154,90 @@ class MCP4725Valve:
     @property
     def commanded_percent(self) -> float:
         return self._commanded
+
+
+class ServoValve:
+    """Proportional gas throttle via a hobby servo on a ball / needle valve.
+
+    Maps a 0-100 % command to servo travel between ``closed_angle`` (0 %) and
+    ``open_angle`` (100 %). Pulse widths are given in microseconds (typical hobby
+    servo range 500-2500 us).
+
+    WARNING: a servo only holds position while powered and is NOT a gas-tight
+    shutoff. Never rely on it alone to stop gas -- always pair it with the
+    solenoid safety cutoff (see :class:`ModulatingValve`).
+    """
+
+    def __init__(
+        self,
+        gpio: int,
+        closed_angle: float = -90.0,
+        open_angle: float = 90.0,
+        min_pulse_us: float = 500.0,
+        max_pulse_us: float = 2500.0,
+    ) -> None:
+        import gpiozero  # type: ignore
+
+        self._closed_angle = closed_angle
+        self._open_angle = open_angle
+        self._commanded = 0.0
+        self._servo = gpiozero.AngularServo(
+            gpio,
+            min_angle=min(closed_angle, open_angle),
+            max_angle=max(closed_angle, open_angle),
+            min_pulse_width=min_pulse_us / 1_000_000.0,
+            max_pulse_width=max_pulse_us / 1_000_000.0,
+            initial_angle=closed_angle,
+        )
+
+    def _angle_for(self, percent: float) -> float:
+        return self._closed_angle + (self._open_angle - self._closed_angle) * (
+            percent / 100.0
+        )
+
+    def set_percent(self, percent: float) -> None:
+        percent = _clamp_percent(percent)
+        self._servo.angle = self._angle_for(percent)
+        self._commanded = percent
+
+    def close(self) -> None:
+        self._servo.angle = self._closed_angle
+        self._commanded = 0.0
+
+    @property
+    def commanded_percent(self) -> float:
+        return self._commanded
+
+
+class ModulatingValve:
+    """Smooth throttle (servo) + independent solenoid safety cutoff.
+
+    The ``servo`` proportionally throttles the flame; ``shutoff`` (a
+    :class:`RelayValve` driving the normally-closed solenoid) is the fail-safe
+    on/off. While firing the solenoid is held OPEN and the servo modulates;
+    :meth:`close` -- which the controller calls on every safe state -- shuts the
+    solenoid, so a power loss, e-stop or fault always cuts gas regardless of
+    where the servo happens to be.
+    """
+
+    def __init__(self, servo: "ServoValve", shutoff: "RelayValve") -> None:
+        self._servo = servo
+        self._shutoff = shutoff
+        self.close()
+
+    def set_percent(self, percent: float) -> None:
+        percent = _clamp_percent(percent)
+        # Hold the safety solenoid fully open while firing; throttle with servo.
+        self._shutoff.set_percent(100.0)
+        self._servo.set_percent(percent)
+
+    def close(self) -> None:
+        self._servo.close()
+        self._shutoff.close()
+
+    @property
+    def commanded_percent(self) -> float:
+        return self._servo.commanded_percent
 
 
 class SimulatedValve:

@@ -11,6 +11,9 @@ hardware:
   thermocouple_type: K         # K-type wire (usable to ~1260 C)
 
   # Valve: 12 V normally-closed solenoid switched by one relay channel.
+  # valve_type: relay  -> on/off solenoid, time-proportioned (coarse control)
+  #             servo  -> smooth throttle: servo on a ball/needle valve, PAIRED
+  #                       with the solenoid below as the fail-safe cutoff
   valve_type: relay
   valve_relay_gpio: 17         # BCM pin -> relay IN1
   valve_relay_active_high: true  # SainSmart boards are often active-LOW: set false
@@ -18,6 +21,15 @@ hardware:
   # Optional: separate relay channel the watchdog uses to cut solenoid power.
   # Set to a real BCM pin (e.g. 27 -> relay IN2) if you run the watchdog.
   watchdog_relay_gpio: -1
+
+  # Servo throttle (only used when valve_type: servo). The servo does the smooth
+  # modulation; the relay/solenoid above stays wired as the independent fail-safe
+  # cutoff (held open while firing, shut on any fault/e-stop/power loss).
+  servo_gpio: 18               # BCM pin -> servo signal (18 supports hardware PWM)
+  servo_closed_angle: -90.0    # angle at 0 % (gas throttled shut)
+  servo_open_angle: 90.0       # angle at 100 % (full flame) -> ~90deg for a ball valve
+  servo_min_pulse_us: 500.0    # tune to your servo's spec
+  servo_max_pulse_us: 2500.0
 
 # Chimney-damper linear actuator (4" 12 V actuator via an L298N H-bridge).
 # Disabled by default; the core controller runs fine without it. Set
