@@ -22,7 +22,9 @@ from .thermocouple import (
 from .valve import (
     GasValve,
     MCP4725Valve,
+    ModulatingValve,
     RelayValve,
+    ServoValve,
     SimulatedValve,
 )
 
@@ -35,6 +37,8 @@ __all__ = [
     "GasValve",
     "RelayValve",
     "MCP4725Valve",
+    "ServoValve",
+    "ModulatingValve",
     "SimulatedValve",
     "Damper",
     "TimedDamper",
@@ -71,6 +75,22 @@ def make_valve(cfg: HardwareConfig) -> GasValve:
             active_high=cfg.valve_relay_active_high,
             window_s=cfg.valve_pwm_window_s,
         )
+    if valve_type == "servo":
+        # Smooth throttle via a servo, paired with the solenoid as the
+        # independent fail-safe cutoff (held open while firing, shut on close()).
+        servo = ServoValve(
+            gpio=cfg.servo_gpio,
+            closed_angle=cfg.servo_closed_angle,
+            open_angle=cfg.servo_open_angle,
+            min_pulse_us=cfg.servo_min_pulse_us,
+            max_pulse_us=cfg.servo_max_pulse_us,
+        )
+        shutoff = RelayValve(
+            gpio=cfg.valve_relay_gpio,
+            active_high=cfg.valve_relay_active_high,
+            window_s=cfg.valve_pwm_window_s,
+        )
+        return ModulatingValve(servo, shutoff)
     if valve_type == "analog":
         return MCP4725Valve(
             i2c_bus=cfg.dac_i2c_bus,

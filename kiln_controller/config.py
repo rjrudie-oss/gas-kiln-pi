@@ -66,8 +66,10 @@ class HardwareConfig:
     thermocouple_spi_device: int = 0
 
     # --- Valve actuator --------------------------------------------------
-    # "relay" (time-proportional on/off solenoid, the parts you have) or
-    # "analog" (0-10 V modulating valve via MCP4725 DAC, future upgrade).
+    # "relay"  -> time-proportional on/off solenoid (the parts you have).
+    # "servo"  -> smooth throttle: a hobby servo on a quarter-turn ball / needle
+    #             valve, PAIRED with the solenoid as an independent safety cutoff.
+    # "analog" -> 0-10 V modulating valve via MCP4725 DAC (future upgrade).
     valve_type: str = "relay"
 
     # Relay / solenoid control:
@@ -82,6 +84,14 @@ class HardwareConfig:
     # GPIO line. -1 == fall back to the main relay pin (only safe if you do NOT
     # run the controller and watchdog at the same time).
     watchdog_relay_gpio: int = -1
+
+    # Servo throttle (valve_type == "servo"). The servo does the smooth
+    # modulation; the relay/solenoid above stays wired as the fail-safe cutoff.
+    servo_gpio: int = 18  # BCM pin to the servo signal (18 supports hardware PWM)
+    servo_closed_angle: float = -90.0  # servo angle at 0 % (gas throttled shut)
+    servo_open_angle: float = 90.0     # servo angle at 100 % (full flame)
+    servo_min_pulse_us: float = 500.0  # pulse width at min_angle
+    servo_max_pulse_us: float = 2500.0  # pulse width at max_angle
 
     # Analog (MCP4725) valve, kept for a future modulating-valve upgrade:
     dac_i2c_address: int = 0x60
