@@ -45,9 +45,16 @@ Solenoid - ------> 12V-  (PSU ground)
 - Use the relay's **NO (normally-open)** contact so the solenoid is powered
   **only** while the relay is energized. Combined with the **normally-closed**
   solenoid, gas flows only when the Pi actively commands it.
-- Many relay boards energize on a **LOW** input. If yours does, set
-  `valve_relay_active_high: false`. Test with the solenoid **disconnected from
-  gas** first and confirm the click/logic matches "closed at rest".
+- Many relay boards energize on a **LOW** input (the common blue opto-isolated
+  4-channel boards do). If yours does, set `valve_relay_active_high: false`.
+  Test with the solenoid **disconnected from gas** first and confirm the
+  click/logic matches "closed at rest".
+- **Fail-safe check (do this before any gas):** with everything idle the relay
+  must be **de-energized** and the solenoid **closed**. Pull all power — the
+  solenoid must stay closed. If the solenoid is instead *open* at rest (and its
+  coil runs hot at idle), it's on the relay's **NC** terminal — move it to
+  **NO**. A coil that stays hot at idle is the tell-tale of NC wiring: it should
+  only warm while the valve is commanded open.
 
 ## Chimney damper — linear actuator via L298N H-bridge
 

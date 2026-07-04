@@ -13,7 +13,7 @@ hardware:
   # Valve: 12 V normally-closed solenoid switched by one relay channel.
   valve_type: relay
   valve_relay_gpio: 17         # BCM pin -> relay IN1
-  valve_relay_active_high: true  # SainSmart boards are often active-LOW: set false
+  valve_relay_active_high: false  # blue opto boards are active-LOW; solenoid on relay NO (de-energized = gas closed)
   valve_pwm_window_s: 10.0     # slow-PWM period; 1 s loop -> 10% duty resolution
   # Optional: separate relay channel the watchdog uses to cut solenoid power.
   # Set to a real BCM pin (e.g. 27 -> relay IN2) if you run the watchdog.
